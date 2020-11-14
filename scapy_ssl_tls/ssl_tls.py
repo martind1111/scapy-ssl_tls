@@ -257,6 +257,16 @@ TLS_VERSIONS = {
     0x0100: "PROTOCOL_DTLS_1_0_OPENSSL_PRE_0_9_8f",
     0x7f10: "TLS_1_3_DRAFT_16",
     0x7f12: "TLS_1_3_DRAFT_18",
+    0x7f13: "TLS_1_3_DRAFT_19",
+    0x7f14: "TLS_1_3_DRAFT_20",
+    0x7f15: "TLS_1_3_DRAFT_21",
+    0x7f16: "TLS_1_3_DRAFT_22",
+    0x7f17: "TLS_1_3_DRAFT_23",
+    0x7f18: "TLS_1_3_DRAFT_24",
+    0x7f19: "TLS_1_3_DRAFT_25",
+    0x7f1a: "TLS_1_3_DRAFT_26",
+    0x7f1b: "TLS_1_3_DRAFT_27",
+    0x7f1c: "TLS_1_3_DRAFT_28",
     0xfeff: "DTLS_1_0",
     0xfefd: "DTLS_1_1",
 }
@@ -273,13 +283,49 @@ TLSHandshakeType = EnumStruct(TLS_HANDSHAKE_TYPES)
 
 TLS_EXTENSION_TYPES = registry.EXTENSIONTYPE_VALUES
 TLS_EXTENSION_TYPES.update({0x3374: "next_protocol_negotiation",
+                            0:  "server_name",
+                            1:  "max_fragment_length",
+                            2:  "client_certificate_url",
+                            3:  "trusted_ca_keys",
+                            4:  "truncated_hmac",
+                            5:  "status_request",
+                            6:  "user_mapping",
+                            7:  "client_authz",
+                            8:  "server_authz",
+                            9:  "cert_type",
+                            10: "supported_groups",
+                            11: "ec_point_formats",
+                            12: "srp",
+                            13: "signature_algorithms",
+                            14: "use_rtp",
+                            15: "heartbeat",
+                            16: "application_layer_protocol_negotiation",
+                            18: "signed_certificate_timestamp",
+                            19: "client_certificate_type",
+                            20: "server_certificate_type",
+                            21: "padding",
+                            22: "encrypt_then_mac",
+                            23: "extended_master_secret",
+                            24: "token_binding",
+                            25: "cached_info",
+                            27: "compress_certificate",
+                            28: "record_size_limit",
+                            29: "pwd_protect",
+                            30: "pwd_clear",
+                            31: "password_salt",
+                            35: "session_ticket",
                             40: "key_share",
                             41: "pre_shared_key",
                             42: "early_data",
                             43: "supported_versions",
                             44: "cookie",
                             45: "psk_key_exchange_modes",
-                            46: "ticket_early_data_info"})    # manually add NPN as it is not in iana registry
+                            46: "ticket_early_data_info",     # manually add NPN as it is not in iana registry
+                            47: "certificate_authorities",
+                            48: "oid_filters",
+                            49: "post_handshake_auth",
+                            50: "signature_algorithms_cert",
+                            51: "key_share"})
 TLSExtensionType = EnumStruct(TLS_EXTENSION_TYPES)
 
 TLS_ALERT_LEVELS = {
@@ -343,6 +389,9 @@ TLS_TYPE_BOOLEAN = {
 TLSTypeBoolean = EnumStruct(TLS_TYPE_BOOLEAN)
 
 TLS_EC_POINT_FORMATS = registry.TLS_EC_POINT_FORMAT_REGISTRY
+TLS_EC_POINT_FORMATS.update({0:  "uncompressed",
+                             1:  "ansiX962_compressed_prime",
+                             2:  "ansiX962_compressed_char2"})
 TLSEcPointFormat = EnumStruct(TLS_EC_POINT_FORMATS)
 # Fix inconsistency in casing
 TLSECPointFormat = TLSEcPointFormat
@@ -352,7 +401,12 @@ TLS_EC_CURVE_TYPES = registry.TLS_EC_CURVE_TYPE_REGISTRY
 TLSECCurveTypes = EnumStruct(TLS_EC_CURVE_TYPES)
 
 TLS_SUPPORTED_GROUPS = registry.TLS_SUPPORTED_GROUPS_REGISTRY
-TLS_SUPPORTED_GROUPS.update({256: "ffdhe2048",
+TLS_SUPPORTED_GROUPS.update({23:  "secp256r1",
+                             24:  "secp384r1",
+                             25:  "secp521r1",
+                             29:  "x25519",
+                             30:  "x448",
+                             256: "ffdhe2048",
                              257: "ffdhe3072",
                              258: "ffdhe4096",
                              259: "ffdhe6144",
@@ -381,6 +435,7 @@ TLS_SIGNATURE_SCHEMES.update({# RSA PKCS1v1.5 algorithms
                               0x0501: "rsa_pkcs1_sha384",
                               0x0601: "rsa_pkcs1_sha512",
                               # ECDSA algorithms
+                              0x0203: "ecdsa_sha1",
                               0x0403: "ecdsa_secp256r1_sha256",
                               0x0503: "ecdsa_secp384r1_sha384",
                               0x0603: "ecdsa_secp521r1_sha512",
@@ -400,6 +455,7 @@ DEFAULT_SIG_SCHEME_LIST = [TLSSignatureScheme.ECDSA_SECP521R1_SHA512,
                            TLSSignatureScheme.RSA_PKCS1_SHA384,
                            TLSSignatureScheme.RSA_PKCS1_SHA256,
                            # Leave SHA1 for now, for ease of testing
+                           TLSSignatureScheme.ECDSA_SHA1,
                            TLSSignatureScheme.RSA_PKCS1_SHA1]
 
 
@@ -580,12 +636,32 @@ class TLSExtCertificateStatusRequest(PacketNoPayload):
 
 
 # TLS 1.3 specific extensions
-class TLSExtSupportedVersions(PacketNoPayload):
-    name = "TLS Extension Supported Versions"
+class TLSClientHelloSupportedVersions(PacketNoPayload):
+    name = "TLS Client Hello Supported Versions"
     fields_desc = [XFieldLenField("length", None, length_of="versions", fmt="B"),
-                   ReprFieldListField("versions", [TLSVersion.TLS_1_3], XShortEnumField("version", None, TLS_VERSIONS),
+                   ReprFieldListField("versions", [TLSVersion.TLS_1_2], XShortEnumField("version", TLSVersion.TLS_1_2, TLS_VERSIONS),
                                       length_from=lambda x: x.length)]
 
+class TLSServerHelloSupportedVersions(PacketNoPayload):
+    name = "TLS Server Hello Supported Versions"
+    fields_desc = [XShortEnumField("version", TLSVersion.TLS_1_2, TLS_VERSIONS)]
+
+class TLSExtSupportedVersions(Packet):
+    name = "TLS Extension Supported Versions"
+    field_desc = []
+    type_map = {"TLSClientHello": TLSClientHelloSupportedVersions,
+                "TLSServerHello": TLSServerHelloSupportedVersions}
+
+    def guess_payload_class(self, raw_bytes):
+        pkt = self.underlayer
+        # If our underlayer is an extension whose type_ is defined
+        # Use this as the upper layer
+        if pkt is not None and pkt.haslayer(TLSExtension):
+            upper_cls = TLSExtSupportedVersions.type_map.get(pkt.type_)
+            if upper_cls is not None:
+                return upper_cls
+            # Otherwise, revert to default payload guessing
+            return Packet.guess_payload_class(self, raw_bytes)
 
 class TLSExtCookie(PacketNoPayload):
     name = "TLS Extension Cookie"
@@ -682,6 +758,16 @@ class TLSExtPreSharedKey(Packet):
 class TLSExtPadding(PacketNoPayload):
     name = "TLS Extension Padding"
     fields_desc = [StrField("padding", b"\x00" * 16)]
+
+
+class TLSExtEncryptThenMac(PacketNoPayload):
+    name = "TLS Extension Encrypt Then Mac"
+    fields_desc = [StrLenField("data", '', length_from=lambda x: x.data_length)]
+
+
+class TLSExtExtendedMasterSecret(PacketNoPayload):
+    name = "TLS Extension Extended Master Secret"
+    fields_desc = [StrLenField("data", '', length_from=lambda x: x.data_length)]
 
 
 class TLSExtPSKKeyExchangeModes(PacketNoPayload):
@@ -1596,13 +1682,15 @@ bind_layers(TLSExtension, TLSExtECPointsFormat, {'type': TLSExtensionType.EC_POI
 bind_layers(TLSExtension, TLSExtSupportedGroups, {'type': TLSExtensionType.SUPPORTED_GROUPS})
 bind_layers(TLSExtension, TLSExtALPN, {'type': TLSExtensionType.APPLICATION_LAYER_PROTOCOL_NEGOTIATION})
 bind_layers(TLSExtension, TLSExtHeartbeat, {'type': TLSExtensionType.HEARTBEAT})
-bind_layers(TLSExtension, TLSExtSessionTicketTLS, {'type': TLSExtensionType.SESSIONTICKET_TLS})
+bind_layers(TLSExtension, TLSExtSessionTicketTLS, {'type': TLSExtensionType.SESSION_TICKET})
 bind_layers(TLSExtension, TLSExtRenegotiationInfo, {'type': TLSExtensionType.RENEGOTIATION_INFO})
 bind_layers(TLSExtension, TLSExtSignatureAlgorithms, {'type': TLSExtensionType.SIGNATURE_ALGORITHMS})
 bind_layers(TLSExtension, TLSExtSupportedVersions, {'type': TLSExtensionType.SUPPORTED_VERSIONS})
 bind_layers(TLSExtension, TLSExtCookie, {'type': TLSExtensionType.COOKIE})
 bind_layers(TLSExtension, TLSExtKeyShare, {'type': TLSExtensionType.KEY_SHARE})
 bind_layers(TLSExtension, TLSExtPadding, {'type': TLSExtensionType.PADDING})
+bind_layers(TLSExtension, TLSExtEncryptThenMac, {'type': TLSExtensionType.ENCRYPT_THEN_MAC})
+bind_layers(TLSExtension, TLSExtExtendedMasterSecret, {'type': TLSExtensionType.EXTENDED_MASTER_SECRET})
 bind_layers(TLSExtension, TLSExtPSKKeyExchangeModes, {'type': TLSExtensionType.PSK_KEY_EXCHANGE_MODES})
 bind_layers(TLSExtension, TLSExtCertificateStatusRequest, {'type': TLSExtensionType.STATUS_REQUEST})
 bind_layers(TLSExtension, TLSExtPreSharedKey, {'type': TLSExtensionType.PRE_SHARED_KEY})
